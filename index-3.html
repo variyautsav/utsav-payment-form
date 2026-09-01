@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment & Order Form</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#222}
+.container{max-width:520px;margin:35px auto;padding:20px}
+.card{background:#fff;border-radius:18px;padding:25px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+h1{margin-top:0;text-align:center;font-size:25px}.sub{text-align:center;color:#666;margin-bottom:24px}
+label{display:block;font-weight:600;margin:15px 0 7px}
+input,textarea{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px}
+textarea{min-height:90px;resize:vertical}
+.amount{background:#f1f7ff;padding:15px;border-radius:12px;text-align:center;margin:18px 0;font-size:22px;font-weight:bold}
+button{width:100%;padding:14px;border:0;border-radius:10px;font-size:17px;font-weight:bold;cursor:pointer;margin-top:12px}
+.pay{background:#111;color:#fff}.submit{background:#16803c;color:#fff}.submit:disabled{background:#aaa;cursor:not-allowed}
+.status{text-align:center;margin-top:14px;font-weight:600}.success{color:#16803c}.error{color:#c62828}
+.small{font-size:13px;color:#777;text-align:center;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+<h1>Order / Registration</h1>
+<div class="sub">Please enter your details and complete payment.</div>
+
+<form id="orderForm">
+<label>Name</label>
+<input id="name" required>
+
+<label>Mobile Number</label>
+<input id="mobile" type="tel" pattern="[0-9]{10}" maxlength="10" required>
+
+<label>Address</label>
+<textarea id="address" required></textarea>
+
+<div class="amount">Payment: ₹1</div>
+
+<button type="button" class="pay" id="payBtn">Pay ₹1 with UPI</button>
+<div id="status" class="status"></div>
+
+<button type="submit" class="submit" id="submitBtn" disabled>Submit</button>
+<div class="small">After completing payment, return here and press Submit.</div>
+</form>
+</div>
+</div>
+
+<script>
+const UPI_ID = "utsavvariya02-2@okicici";
+const AMOUNT = "1";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC392s337CBvoz-1SYFeKsTykL552Bv_UIvizT7J3x8UoU7i1Z-kjNXmRtRYsMu3P8Ng/exec";
+
+let paymentStarted = false;
+
+document.getElementById("payBtn").addEventListener("click", () => {
+  const name = document.getElementById("name").value.trim();
+  const mobile = document.getElementById("mobile").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const status = document.getElementById("status");
+
+  if (!name || !/^[0-9]{10}$/.test(mobile) || !address) {
+    status.className = "status error";
+    status.textContent = "Please fill Name, 10-digit Mobile Number and Address first.";
+    return;
+  }
+
+  const params = new URLSearchParams({
+    pa: UPI_ID,
+    pn: "Utsav",
+    am: AMOUNT,
+    cu: "INR"
+  });
+
+  paymentStarted = true;
+  status.className = "status";
+  status.textContent = "Opening UPI payment...";
+  window.location.href = "upi://pay?" + params.toString();
+
+  // NOTE: A UPI deep-link opening does NOT prove payment success.
+  // Real automatic payment verification requires a payment gateway/webhook.
+  setTimeout(() => {
+    document.getElementById("submitBtn").disabled = false;
+    status.className = "status";
+    status.textContent = "If your payment was successful, you can submit now.";
+  }, 2500);
+});
+
+document.getElementById("orderForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("status");
+  const data = {
+    name: document.getElementById("name").value.trim(),
+    mobile: document.getElementById("mobile").value.trim(),
+    address: document.getElementById("address").value.trim(),
+    amount: AMOUNT,
+    paymentStatus: "Customer confirmed payment",
+    submitted_at: new Date().toISOString()
+  };
+
+  if (!SCRIPT_URL) {
+    status.className = "status error";
+    status.textContent = "Backend is not connected yet. Add the Google Apps Script URL.";
+    return;
+  }
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(data)
+    });
+    status.className = "status success";
+    status.textContent = "Submitted successfully. Thank you!";
+    e.target.reset();
+    document.getElementById("submitBtn").disabled = true;
+  } catch (err) {
+    status.className = "status error";
+    status.textContent = "Could not submit. Please try again.";
+  }
+});
+</script>
+</body>
+</html>
